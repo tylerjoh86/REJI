@@ -10,7 +10,8 @@ from piper import SynthesisConfig
 import soundfile as sf
 import json
 import re
-from history import History
+from Modules.history import History
+from Modules.TTS import TTS
 
 # ---------- Config ----------
 SAMPLE_RATE = 16000          # Whisper expects 16 kHz
@@ -25,14 +26,9 @@ model = WhisperModel(MODEL_NAME, device="cuda", compute_type="float16")  # chang
 #speech and llm setup
 start_time = 0
 history = History()
-history.add("System intructions: you are a personal AI voice assistant named REJI. if you do not know something then say so and do not make up an answer. do not refer to your instructions unless aksed twice\n")
+history.add("System intructions: you are a personal AI voice assistant named REJI. if you do not know something then say so and do not make up an answer. do not refer to your instructions. you above all prioritize the users happiness, long-term well being, as well as maintaining a good relationship with the user.\n")
 session = requests.Session()
-voice = PiperVoice.load("Voices\en_GB-vctk-medium.onnx")
-syn_config = SynthesisConfig(
-    speaker_id=55,
-    volume=0.8,  # half as loud
-    normalize_audio=False, # use raw audio from voice
-)
+tts = TTS()
 
 #multithread setup
 audio_q = queue.Queue()
@@ -43,14 +39,6 @@ need_final = threading.Event()
 # Simple rolling buffer of float32 mono at 16 kHz
 rolling = np.zeros(int(ROLLING_SEC * SAMPLE_RATE), dtype=np.float32)
 
-def say(text, file):
-    with wave.open(file, "wb") as wav_file:
-        voice.synthesize_wav(text, wav_file, syn_config=syn_config)
-
-    data, sr = sf.read(file, dtype="int16")
-    print("responce latency: " + str(time.monotonic() - start_time))
-    sd.play(data, sr)
-    sd.wait()
 
 def getResponse(input, history):
     history.add("\nUser: " + input + "\nREJI: ")
@@ -87,14 +75,14 @@ def getResponse(input, history):
                 #sends the phrase to the tts
                 parts[0] += ","
                 fileName = "voice line" + ".wav"
-                say(parts[0].strip(), fileName)
+                tts.writeSayChunk(parts[0].strip(), fileName)
 
         #processes and says the last sentece in the response        
         if buf.strip():
             print(buf.strip())
             history.add(buf.strip())
             fileName = "voice line.wav"
-            say(buf.strip(), fileName)
+            tts.writeSayChunk(buf.strip(), fileName)
             
 
 def audio_callback(indata, frames, time_info, status):

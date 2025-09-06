@@ -1,0 +1,9 @@
+tts:
+    voice_path: Voices\en_GB-vctk-medium.onnx
+    speaker_id: 55
+    normalize_audio: false
+    volume: 0.8
+
+stt:
+
+llm:
